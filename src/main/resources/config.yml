@@ -1,0 +1,20 @@
+# list of all portals
+portals:
+  # portal's name doesn't matter
+  example1:
+    # portal's level name
+    world: "world"
+    # portal's corner x
+    x: 100
+    # portal's start y
+    y: 5.0
+    # portal's corner z
+    z: 100
+    # portal's width
+    width: 3
+    # portal's height
+    height: 5.0
+    # portal's rotation x or z
+    rotation: "x"
+    # portal's command
+    command: "warp somewhere"
