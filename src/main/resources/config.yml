@@ -1,3 +1,7 @@
+# config version, do not edit
+configVersion: 2
+# teleport player to spawn when he uses portal, prevent infinity portal loop with server transfers
+resetPosition: false
 # list of all portals
 portals:
   # portal's name doesn't matter
