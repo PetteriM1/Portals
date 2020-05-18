@@ -10,56 +10,77 @@ public class Main extends PluginBase {
 
     private static final int configVersion = 2;
 
-    public static Config config;
+    static ConfigSection portals;
+
+    static boolean resetPosition;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        config = getConfig();
+        Config config = getConfig();
         if (config.getInt("configVersion") != configVersion) {
             getLogger().warning("Outdated config file, trying to update it automatically");
             config.set("configVersion", configVersion);
             config.set("resetPosition", false);
-            config.save();
+            config.save(false);
             config = getConfig();
         }
-        getServer().getScheduler().scheduleDelayedRepeatingTask(this, new Task(), 2, 2);
+        resetPosition = config.getBoolean("resetPosition");
+        portals = config.getSections("portals");
+        if (portals.size() > 0) {
+            getServer().getScheduler().scheduleDelayedRepeatingTask(this, new Task(), 2, 2);
+        } else {
+            getLogger().warning("No portals found from the config");
+        }
     }
 }
 
-class Task extends Thread {
+class Task implements Runnable {
 
     @Override
     public void run() {
         for (Player p : Server.getInstance().getOnlinePlayers().values()) {
-            if (Main.config.getSections("portals").size() > 0) {
-                Main.config.getSections("portals").forEach((s, o) -> {
-                    ConfigSection c = (ConfigSection) o;
-                    if (p.getLevel().getName().equals(c.getString("world"))) {
-                        if (c.getString("rotation").equals("x")) {
-                            if (Math.round(p.x * 2) / 2.0 == c.getInt("x") && Math.round(p.z) <= c.getInt("z") + c.getInt("width") && Math.round(p.z) >= c.getInt("z")) {
-                                if (p.y >= c.getDouble("y") && p.y <= c.getDouble("y") + c.getDouble("height")) {
-                                    if (Main.config.getBoolean("resetPosition")) {
-                                        p.teleport(p.getLevel().getSafeSpawn());
-                                    }
-                                    Server.getInstance().dispatchCommand(p, c.getString("command"));
+            Main.portals.forEach((s, o) -> {
+                ConfigSection c = (ConfigSection) o;
+                if (p.getLevel().getName().equals(c.getString("world"))) {
+                    String rotation = c.getString("rotation");
+                    if (rotation.equals("x")) {
+                        int z = p.getFloorZ();
+                        if (p.getFloorX() == c.getInt("x") && z <= c.getInt("z") + c.getInt("width") && z >= c.getInt("z")) {
+                            if (p.y >= c.getDouble("y") && p.y <= c.getDouble("y") + c.getDouble("height")) {
+                                if (Main.resetPosition) {
+                                    p.teleport(p.getLevel().getSafeSpawn());
                                 }
-                            }
-                        } else if (c.getString("rotation").equals("z")) {
-                            if (Math.round(p.z * 2) / 2.0 == c.getInt("z") && Math.round(p.x) <= c.getInt("x") + c.getInt("width") && Math.round(p.x) >= c.getInt("x")) {
-                                if (p.y >= c.getDouble("y") && p.y <= c.getDouble("y") + c.getDouble("height")) {
-                                    if (Main.config.getBoolean("resetPosition")) {
-                                        p.teleport(p.getLevel().getSafeSpawn());
-                                    }
-                                    Server.getInstance().dispatchCommand(p, c.getString("command"));
+                                String cmd = c.getString("command");
+                                boolean console = false;
+                                if (cmd.startsWith("%consolecommand%")) {
+                                    cmd = cmd.replace("%consolecommand%", "").replace("%player%", "\"" + p.getName() + "\"");
+                                    console = true;
                                 }
+                                Server.getInstance().dispatchCommand(console ? Server.getInstance().getConsoleSender() : p, cmd);
                             }
-                        } else {
-                            Server.getInstance().getLogger().error("Unknown portal rotation: " + c.getString("rotation"));
                         }
+                    } else if (rotation.equals("z")) {
+                        int x = p.getFloorX();
+                        if (p.getFloorZ() == c.getInt("z") && x <= c.getInt("x") + c.getInt("width") && x >= c.getInt("x")) {
+                            if (p.y >= c.getDouble("y") && p.y <= c.getDouble("y") + c.getDouble("height")) {
+                                if (Main.resetPosition) {
+                                    p.teleport(p.getLevel().getSafeSpawn());
+                                }
+                                String cmd = c.getString("command");
+                                boolean console = false;
+                                if (cmd.startsWith("%consolecommand%")) {
+                                    cmd = cmd.replace("%consolecommand%", "").replace("%player%", "\"" + p.getName() + "\"");
+                                    console = true;
+                                }
+                                Server.getInstance().dispatchCommand(console ? Server.getInstance().getConsoleSender() : p, cmd);
+                            }
+                        }
+                    } else {
+                        Server.getInstance().getLogger().error("Invalid portal rotation: " + c.getString("rotation"));
                     }
-                });
-            }
+                }
+            });
         }
     }
 }
